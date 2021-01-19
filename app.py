@@ -1,49 +1,31 @@
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Integer, ForeignKey, String, Column
+from configparser import ConfigParser 
 import uuid
 import jwt
 import datetime
 import logging
+from sqlalchemy.orm import validates
 from sqlalchemy.sql import func
 from functools import wraps
-logging.basicConfig(filename='demo.log',
+from model import db, AccessRequest, Center, Animals, Species
+
+
+config = ConfigParser() 
+config_file = 'config.ini' 
+config.read(config_file) 
+print(config.sections())
+
+
+
+
+logging.basicConfig(filename=config['LOG']['logfile'],
     level=logging.DEBUG,
     format='%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
+
 app = Flask(__name__)
-db = SQLAlchemy(app)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///project.db' # new
-app.config['SECRET_KEY']='Th1s1ss3cr3t'
-secret=app.config['SECRET_KEY']
-print(secret)
 
-class AccessRequest(db.Model):
-    ar_id=db.Column(db.Integer, primary_key=True)
-    c_id = db.Column(db.Integer, nullable=False)
-    timestamp = Column(db.DateTime(timezone=True), server_default=func.now())
-
-
-class Center(db.Model):
-    c_id = db.Column(db.Integer, primary_key=True)
-    login = db.Column(db.String(50), nullable=False)
-    password = db.Column(db.String(50), nullable=False)
-    address = db.Column(db.String(50), nullable=False)
-    
-class Animals(db.Model):
-    a_id = db.Column(db.Integer, primary_key=True, index=True)
-    centerid = db.Column(db.Integer, nullable=False)
-    name = db.Column(db.String(50), nullable=False)
-    #species = db.Column(db.String(50), nullable=False, ForeignKey("species.name"))
-    age = db.Column(db.Integer, nullable=False)
-    price = db.Column(db.Float, nullable=True)
-    species = db.Column(db.String(50), nullable=True)
-
-
-class Species(db.Model):
-    s_id = db.Column(db.Integer, primary_key=True, index=True)
-    description = db.Column(db.String(50), nullable=False)
-    price = db.Column(db.Float, nullable=True)
-    name = db.Column(db.String(50), nullable=False)
 
 
 def token_required(f):
@@ -66,6 +48,8 @@ def token_required(f):
 
         return f(current_user, *args, **kwargs)
     return decorator
+
+
 @app.route('/register', methods=['POST'])
 def create_user():
     data=request.get_json()
@@ -74,12 +58,15 @@ def create_user():
         password=data['password'],
         address=data['address']
     )
-    app.logger.info("New user registered")
-    db.session.add(u)
-    db.session.commit()
-    return{
-        'c_id':u.c_id,'login':u.login, 'password':u.password,'address':u.address
-    },201
+    try:
+        db.session.add(u)
+        db.session.commit()
+        app.logger.info("New user registered" + "Center ID -"+u.c_id + u.login )
+        return{
+            'c_id':u.c_id,'login':u.login, 'password':u.password,'address':u.address
+        },201
+    except AssertionError as exception_message: 
+        return jsonify(msg='Error: {}. '.format(exception_message)), 400
 
 @app.route('/login', methods=['GET', 'POST'])   
 def login_user(): 
@@ -116,7 +103,7 @@ def login_user():
 def create_animal(current_user):
     
     data=request.get_json()
-    u=Animals(
+    a=Animals(
         centerid=current_user.c_id,
         name=data['name'],
         age=data['age'],
@@ -124,14 +111,17 @@ def create_animal(current_user):
         species=data['species']
 
     )
-    db.session.add(u)
-    db.session.commit()
-    app.logger.info(u.centerid,u.name," Animal added")
-    return{
-        'a_id':u.a_id,'centerid':u.centerid, 
-        'name':u.name,'age':u.age,'price':u.price,
-        'species':u.species
-    },201
+    try:
+        db.session.add(a)
+        db.session.commit()
+        app.logger.info(a.centerid,a.name," Animal added" )
+        return{
+            'a_id':a.a_id,'centerid':a.centerid, 
+            'name':a.name,'age':a.age,'price':a.price,
+            'species':a.species
+        },201
+    except AssertionError as exception_message: 
+        return jsonify(msg='Error: {}. '.format(exception_message)), 400
 
 
 @app.route('/species', methods=['POST'])
@@ -139,19 +129,21 @@ def create_animal(current_user):
 def create_specie(current_user):
     data=request.get_json()
     u=Species(
-        s_id=data['s_id'],
         description=data['description'],
         name=data['name'],
         price=data['price']
 
     )
-    db.session.add(u)
-    db.session.commit()
-    app.logger.info(u.s_id,u.name," Species added")
-    return{
-        's_id':u.s_id,'description':u.description,
-         'name':u.name,'price':u.price
-    },201
+    try:
+        db.session.add(u)
+        db.session.commit()
+        app.logger.info(u.s_id,u.name," Species added")
+        return{
+            's_id':u.s_id,'description':u.description,
+            'name':u.name,'price':u.price
+        },201
+    except AssertionError as exception_message: 
+        return jsonify(msg='Error: {}. '.format(exception_message)), 400
 
 
 
@@ -161,6 +153,7 @@ def read_users():
         'c_id':u.c_id,'login':u.login, 'password':u.password,'address':u.address
     }for u in Center.query.all()
     ])
+
 @app.route('/center/<id>/')
 def get_user(id):
 	print(id)
@@ -178,6 +171,7 @@ def read_animals():
         'species':a.species
     }for a in Animals.query.all()
     ])
+
 @app.route('/animals/<id>/', methods=['GET'])
 def get_animal(id):
 	print(id)
@@ -190,32 +184,39 @@ def get_animal(id):
 @app.route('/animals/<animal_id>/', methods=['PUT'])
 @token_required
 def update_animal(current_user,animal_id):
-	data = request.get_json()
-	if 'name' not in data:
-		return {
-			'error': 'Bad Request',
-			'message': 'Name field needs to be present'
-		}, 400
-	a = Animals.query.filter_by(a_id=animal_id).first_or_404()
-	db.session.commit()
-    #app.logger.info("animal updated",a.a_id,a.name)
-    
-	return jsonify({
-		'a_id':a.a_id,'centerid':a.centerid, 
+    data = request.get_json()
+    if 'name' not in data:
+        return {
+        'error': 'Bad Request',
+        'message': 'Name field needs to be present'
+        }, 400
+    else:
+        a = Animals.query.filter_by(a_id=animal_id).first_or_404()
+        db.session.add(a)
+        db.session.commit()
+        app.logger.info("animal updated",a.a_id,a.name)
+
+        return jsonify({
+        'a_id':a.a_id,'centerid':current_user, 
         'name':a.name,'age':a.age,'price':a.price,
         'species':a.species
-	}),201
+        }),201
 
 
 @app.route('/animals/<animal_id>/', methods=['DELETE'] )
-#@token_required
-def delete_animal(animal_id):
-	animal = Animals.query.filter_by(a_id=animal_id).first_or_404()
-	db.session.delete(animal)
-	db.session.commit()
-	return {
-		'success': 'Data deleted successfully'
-	}
+@token_required
+def delete_animal(current_user,animal_id):
+    animal = Animals.query.filter_by(a_id=animal_id).first_or_404()
+    if (current_user.c_id == animal.c_id):
+        db.session.delete(animal)
+        db.session.commit()
+        return {
+            'success': 'Data deleted successfully'
+        }
+    else:
+        return {
+            'Failure': 'You cannot delete that'
+        }
 
 
 @app.route('/species', methods=['GET'])
@@ -225,6 +226,7 @@ def read_species():
          'name':s.name,'price':s.price
     }for s in Species.query.all()
     ])
+
 @app.route('/species/<id>/')
 def get_specie(id):
 	print(id)
