@@ -11,7 +11,7 @@ from sqlalchemy.sql import func
 from functools import wraps
 from model import db, AccessRequest, Center, Animals, Species
 
-
+'''Reading configuration file.'''
 config = ConfigParser() 
 config_file = 'config.ini' 
 config.read(config_file) 
@@ -19,15 +19,17 @@ print(config.sections())
 
 
 
-
+'''Setting up logging.'''
 logging.basicConfig(filename=config['LOG']['logfile'],
     level=logging.DEBUG,
     format='%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
 
+
+'''App initialization'''
 app = Flask(__name__)
 
 
-
+'''Token based authentication'''
 def token_required(f):
     @wraps(f)
     def decorator(*args, **kwargs):
@@ -49,6 +51,7 @@ def token_required(f):
         return f(current_user, *args, **kwargs)
     return decorator
 
+'''Adding new users'''
 
 @app.route('/register', methods=['POST'])
 def create_user():
@@ -67,6 +70,9 @@ def create_user():
         },201
     except AssertionError as exception_message: 
         return jsonify(msg='Error: {}. '.format(exception_message)), 400
+
+
+'''User login - gets login and password - outputs JWT'''
 
 @app.route('/login', methods=['GET', 'POST'])   
 def login_user(): 
@@ -97,6 +103,7 @@ def login_user():
      return jsonify({'token' : token}) 
   return ('could not verify',  401, {'WWW.Authentication': 'Basic realm: "login required"'})
 
+'''Adding new animals'''
 
 @app.route('/animals', methods=['POST'])
 @token_required
@@ -124,6 +131,8 @@ def create_animal(current_user):
         return jsonify(msg='Error: {}. '.format(exception_message)), 400
 
 
+'''Adding new species'''
+
 @app.route('/species', methods=['POST'])
 @token_required
 def create_specie(current_user):
@@ -146,7 +155,8 @@ def create_specie(current_user):
         return jsonify(msg='Error: {}. '.format(exception_message)), 400
 
 
-
+'''Get methods - displaying all users/animals/species 
+- plus displaying one by ID'''
 @app.route('/center', methods=['GET'])
 def read_users():
     return jsonify([{
@@ -181,6 +191,28 @@ def get_animal(id):
         'name':a.name,'age':a.age,'price':a.price,
         'species':a.species
 		}
+
+
+@app.route('/species', methods=['GET'])
+def read_species():
+    return jsonify([{
+        's_id':s.s_id,'description':s.description,
+         'name':s.name,'price':s.price
+    }for s in Species.query.all()
+    ])
+
+@app.route('/species/<id>/', methods = ['GET'])
+def get_specie(id):
+	print(id)
+	s = Species.query.filter_by(s_id=id).first_or_404()
+	return {
+		's_id':s.s_id,'description':s.description,
+         'name':s.name,'price':s.price
+		}
+
+        
+'''Editing existing animal'''
+
 @app.route('/animals/<animal_id>/', methods=['PUT'])
 @token_required
 def update_animal(current_user,animal_id):
@@ -202,7 +234,7 @@ def update_animal(current_user,animal_id):
         'species':a.species
         }),201
 
-
+'''Animal delete method'''
 @app.route('/animals/<animal_id>/', methods=['DELETE'] )
 @token_required
 def delete_animal(current_user,animal_id):
@@ -219,22 +251,6 @@ def delete_animal(current_user,animal_id):
         }
 
 
-@app.route('/species', methods=['GET'])
-def read_species():
-    return jsonify([{
-        's_id':s.s_id,'description':s.description,
-         'name':s.name,'price':s.price
-    }for s in Species.query.all()
-    ])
-
-@app.route('/species/<id>/')
-def get_specie(id):
-	print(id)
-	s = Species.query.filter_by(s_id=id).first_or_404()
-	return {
-		's_id':s.s_id,'description':s.description,
-         'name':s.name,'price':s.price
-		}
 
 if __name__ == '__main__':
     app.run(debug=True)
