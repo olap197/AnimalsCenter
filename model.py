@@ -36,13 +36,13 @@ class Center(db.Model):
     address = db.Column(db.String(50), nullable=False)
     @validates('login') 
     def validate_username(self, key, login):
-        if not username:
+        if not login:
             raise AssertionError('No login provided')
-        if User.query.filter(User.username == username).first():
+        if Center.query.filter(Center.login == login).first():
             raise AssertionError('login is already in use')
-        if len(username) < 5 or len(username) > 20:
+        if len(login) < 5 or len(login) > 20:
             raise AssertionError('login must be between 5 and 20 characters') 
-        return username
+        return login
     
 class Animals(db.Model):
     a_id = db.Column(db.Integer, primary_key=True, index=True)
