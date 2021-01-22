@@ -27,7 +27,7 @@ python3 -m unittest login_test.py
 
 # Test results 
 
-![alt text](https://postimg.cc/21cy1r55)
+![alt text](https://github.com/olap197/AnimalsCenter/blob/master/Test_results.png?raw=true)
 
 
 
