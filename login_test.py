@@ -7,7 +7,7 @@ from model import db, AccessRequest, Center, Animals, Species
 login='test_Case12'
 password='mycoolpassword'
 class TestLogin(unittest.TestCase):
-'''Init App'''
+    '''Init App'''
     def setUp(self):
         self.app = app.test_client()
         self.db = SQLAlchemy(app)

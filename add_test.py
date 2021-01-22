@@ -8,7 +8,7 @@ login='test_Case12'
 password='mycoolpassword'
 class TestAddAnimal(unittest.TestCase):
 
-'''Init App'''
+    '''Init App'''
     def setUp(self):
         self.app = app.test_client()
         self.db = SQLAlchemy(app)

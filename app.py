@@ -32,8 +32,9 @@ app.config['SECRET_KEY']=config['DB']['SECRET_KEY']
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS']=False
 db = SQLAlchemy(app)
-'''Token based authentication'''
+
 def token_required(f):
+    '''Token based authentication'''
     @wraps(f)
     def decorator(*args, **kwargs):
 
@@ -54,10 +55,10 @@ def token_required(f):
         return f(current_user, *args, **kwargs)
     return decorator
 
-'''Adding new users'''
 
 @app.route('/register', methods=['POST'])
 def create_user():
+    '''Adding new users'''
     data=request.get_json()
     c=Center(
         login=data['login'],
@@ -75,10 +76,11 @@ def create_user():
         return jsonify(msg='Error: {}. '.format(exception_message)), 400
 
 
-'''User login - gets login and password - outputs JWT'''
+
 
 @app.route('/login', methods=['GET', 'POST'])   
-def login_user(): 
+def login_user():
+  '''User login - gets login and password - outputs JWT'''
  
   auth = request.authorization   
 
@@ -111,11 +113,11 @@ def login_user():
   
   return ('could not verify',  401, {'WWW.Authentication': 'Basic realm: "login required"'})
 
-'''Adding new animals'''
 
 @app.route('/animals', methods=['POST'])
 @token_required
 def create_animal(current_user):
+    '''Adding new animals'''
     
     data=request.get_json()
     a=Animals(
@@ -139,11 +141,11 @@ def create_animal(current_user):
         return jsonify(msg='Error: {}. '.format(exception_message)), 400
 
 
-'''Adding new species'''
 
 @app.route('/species', methods=['POST'])
 @token_required
 def create_specie(current_user):
+    '''Adding new species'''
     data=request.get_json()
     u=Species(
         description=data['description'],
@@ -165,6 +167,7 @@ def create_specie(current_user):
 
 '''Get methods - displaying all users/animals/species 
 - plus displaying one by ID'''
+
 @app.route('/center', methods=['GET'])
 def read_users():
     return jsonify([{
@@ -219,11 +222,11 @@ def get_specie(id):
 		}
 
         
-'''Editing existing animal'''
 
 @app.route('/animals/<animal_id>/', methods=['PUT'])
 @token_required
 def update_animal(current_user,animal_id):
+    '''Editing existing animal'''
     data = request.get_json()
     if 'name' not in data:
         return {
@@ -242,10 +245,10 @@ def update_animal(current_user,animal_id):
         'species':a.species
         }),200
 
-'''Animal delete method'''
 @app.route('/animals/<animal_id>/', methods=['DELETE'] )
 @token_required
 def delete_animal(current_user,animal_id):
+    '''Animal delete method'''
     animal = Animals.query.filter_by(a_id=animal_id).first_or_404()
     if (current_user.c_id == animal.c_id):
         db.session.delete(animal)

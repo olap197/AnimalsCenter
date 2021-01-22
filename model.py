@@ -26,12 +26,14 @@ db = SQLAlchemy(app)
 
         
 class AccessRequest(db.Model):
+    '''Class to store ids of logged users'''
     ar_id=db.Column(db.Integer, primary_key=True)
     c_id = db.Column(db.Integer, nullable=False)
     timestamp = Column(db.DateTime(timezone=True), server_default=func.now())
 
 
 class Center(db.Model):
+    '''Class to create and add Centers table'''
     c_id = db.Column(db.Integer, primary_key=True)
     login = db.Column(db.String(50), nullable=False)
     password = db.Column(db.String(50), nullable=False)
@@ -47,6 +49,7 @@ class Center(db.Model):
         return login
     
 class Animals(db.Model):
+    '''Class to create and add to Animals table'''
     a_id = db.Column(db.Integer, primary_key=True, index=True)
     centerid = db.Column(db.Integer, nullable=False)
     name = db.Column(db.String(50), nullable=False)
@@ -63,6 +66,7 @@ class Animals(db.Model):
 
 
 class Species(db.Model):
+    '''Class to create and add to Species table'''
     s_id = db.Column(db.Integer, primary_key=True, index=True)
     description = db.Column(db.String(50), nullable=False)
     price = db.Column(db.Float, nullable=True)

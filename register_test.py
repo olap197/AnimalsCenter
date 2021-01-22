@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from app import app
 from model import db, AccessRequest, Center, Animals, Species
 
-login='test_Case12'
+login='test_Case13'
 
 class RegisterTest(unittest.TestCase):
     '''Init App'''
