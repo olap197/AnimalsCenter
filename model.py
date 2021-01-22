@@ -9,19 +9,19 @@ import logging
 from sqlalchemy.orm import validates
 from sqlalchemy.sql import func
 from functools import wraps
-
+app = Flask(__name__)
+app.testing=True
 config = ConfigParser() 
 config_file = 'config.ini' 
 config.read(config_file) 
-print(config.sections())
 
 
-app = Flask(__name__)
-db = SQLAlchemy(app)
 DATABASE_CONNECTION_URI=config['DB']['SQLALCHEMY_DATABASE_URI']
-
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_CONNECTION_URI
 app.config['SECRET_KEY']=config['DB']['SECRET_KEY']
+db = SQLAlchemy(app)
+
+
         
 class AccessRequest(db.Model):
     ar_id=db.Column(db.Integer, primary_key=True)
@@ -57,7 +57,7 @@ class Animals(db.Model):
     def validate_price(self, key, price):
         if type(price) is not float:
             raise AssertionError('Bad price format')
-        return username 
+        return price 
 
 
 class Species(db.Model):
@@ -69,4 +69,4 @@ class Species(db.Model):
     def validate_price(self, key, price):
         if type(price) is not float:
             raise AssertionError('Bad price format')
-        return username 
+        return price 

@@ -9,16 +9,13 @@ import logging
 from sqlalchemy.orm import validates
 from sqlalchemy.sql import func
 from functools import wraps
-from model import db, AccessRequest, Center, Animals, Species
-
+from model import AccessRequest, Center, Animals, Species
+from urllib.parse import urlparse
 '''Reading configuration file.'''
+
 config = ConfigParser() 
 config_file = 'config.ini' 
 config.read(config_file) 
-print(config.sections())
-
-
-
 '''Setting up logging.'''
 logging.basicConfig(filename=config['LOG']['logfile'],
     level=logging.DEBUG,
@@ -27,8 +24,12 @@ logging.basicConfig(filename=config['LOG']['logfile'],
 
 '''App initialization'''
 app = Flask(__name__)
+app.testing=True
 
-
+DATABASE_CONNECTION_URI=config['DB']['SQLALCHEMY_DATABASE_URI']
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_CONNECTION_URI
+app.config['SECRET_KEY']=config['DB']['SECRET_KEY']
+db = SQLAlchemy(app)
 '''Token based authentication'''
 def token_required(f):
     @wraps(f)
@@ -56,18 +57,18 @@ def token_required(f):
 @app.route('/register', methods=['POST'])
 def create_user():
     data=request.get_json()
-    u=Center(
+    c=Center(
         login=data['login'],
         password=data['password'],
         address=data['address']
     )
     try:
-        db.session.add(u)
+        db.session.add(c)
         db.session.commit()
-        app.logger.info("New user registered" + "Center ID -"+u.c_id + u.login )
+        app.logger.info("New user registered" + "Center ID -"+str(c.c_id) +" "+ str(c.login ))
         return{
-            'c_id':u.c_id,'login':u.login, 'password':u.password,'address':u.address
-        },201
+            'c_id':c.c_id,'login':c.login, 'password':c.password,'address':c.address
+        },200
     except AssertionError as exception_message: 
         return jsonify(msg='Error: {}. '.format(exception_message)), 400
 
@@ -80,27 +81,32 @@ def login_user():
   auth = request.authorization   
 
   if not auth or not auth.username or not auth.password:  
-     return make_response('could not verify', 401, {'WWW.Authentication': 'Basic realm: "login required"'})    
+     return jsonify(msg='could not verify, login required'),400    
 
   center = Center.query.filter_by(login=auth.username).first()
-  ar=AccessRequest(
-      c_id=center.c_id,
-      timestamp=datetime.datetime.now()
-  )
-  
-  db.session.add(ar)
-  db.session.commit()
-  print(ar.c_id, ar.timestamp)  
-  print(center.c_id) 
-  app.logger.info(center.login," Logged in")
+
+
+
   if (str(center.password) == str(auth.password)):  
-     token =  jwt.encode(
-            {"c_id":center.c_id},
-            app.config.get('SECRET_KEY'),
-            algorithm='HS256'
-        )  
-     print(token.encode('UTF-8'))
-     return jsonify({'token' : token}) 
+    token =  jwt.encode(
+        {"c_id":center.c_id},
+        app.config.get('SECRET_KEY'),
+        algorithm='HS256'
+    )  
+    print(token.encode('UTF-8'))
+
+    ar=AccessRequest(
+        c_id=center.c_id,
+        timestamp=datetime.datetime.now()
+        )
+    db.session.commit()
+    db.session.add(ar) 
+    print(ar.c_id, ar.timestamp)  
+    print(center.c_id) 
+    app.logger.info(" Logged in "+str(center.c_id))
+    return jsonify({'token' : token})
+
+  
   return ('could not verify',  401, {'WWW.Authentication': 'Basic realm: "login required"'})
 
 '''Adding new animals'''
@@ -121,12 +127,12 @@ def create_animal(current_user):
     try:
         db.session.add(a)
         db.session.commit()
-        app.logger.info(a.centerid,a.name," Animal added" )
+        app.logger.info("Animal added "+str(a.centerid)+" "+str(a.name))
         return{
             'a_id':a.a_id,'centerid':a.centerid, 
             'name':a.name,'age':a.age,'price':a.price,
             'species':a.species
-        },201
+        },200
     except AssertionError as exception_message: 
         return jsonify(msg='Error: {}. '.format(exception_message)), 400
 
@@ -146,11 +152,11 @@ def create_specie(current_user):
     try:
         db.session.add(u)
         db.session.commit()
-        app.logger.info(u.s_id,u.name," Species added")
+        app.logger.info(" Species added " +str(u.s_id)+" "+ str(u.name))
         return{
             's_id':u.s_id,'description':u.description,
             'name':u.name,'price':u.price
-        },201
+        },200
     except AssertionError as exception_message: 
         return jsonify(msg='Error: {}. '.format(exception_message)), 400
 
@@ -226,13 +232,13 @@ def update_animal(current_user,animal_id):
         a = Animals.query.filter_by(a_id=animal_id).first_or_404()
         db.session.add(a)
         db.session.commit()
-        app.logger.info("animal updated",a.a_id,a.name)
+        app.logger.info("animal updated"+str(a.a_id)+" "+str(a.name))
 
         return jsonify({
         'a_id':a.a_id,'centerid':current_user, 
         'name':a.name,'age':a.age,'price':a.price,
         'species':a.species
-        }),201
+        }),200
 
 '''Animal delete method'''
 @app.route('/animals/<animal_id>/', methods=['DELETE'] )
