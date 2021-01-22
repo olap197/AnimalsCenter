@@ -29,6 +29,8 @@ app.testing=True
 DATABASE_CONNECTION_URI=config['DB']['SQLALCHEMY_DATABASE_URI']
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_CONNECTION_URI
 app.config['SECRET_KEY']=config['DB']['SECRET_KEY']
+SQLALCHEMY_TRACK_MODIFICATIONS = False
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS']=False
 db = SQLAlchemy(app)
 '''Token based authentication'''
 def token_required(f):
